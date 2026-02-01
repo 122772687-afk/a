@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后台管理系统-账号可增改（带等级）</title>
+<!-- 核心CDN依赖 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/element-plus/dist/index.full.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blueimp-md5@2.19.0/js/md5.min.js"></script>
+<style>
+  * { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    transition: all 0.3s ease;
+  }
+  body { 
+    font-family: "Microsoft YaHei", "Inter", sans-serif; 
+    background: linear-gradient(135deg, #f0f4f9 0%, #e2e8f0 100%);
+    min-height: 100vh;
+    color: #334155;
+  }
+  /* 登录页高级样式 */
+  .login-box {
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(120deg, #1677ff 0%, #0ea5e9 50%, #06b6d4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 45px 40px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .login-card h1 {
+    text-align: center;
+    color: #1677ff;
+    margin-bottom: 35px;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .remember-pwd { 
+    margin: 15px 0 25px; 
+    font-size: 14px; 
+    color: #64748b;
+  }
+  /* 后台主容器 */
+  .admin-box {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* 头部导航高级样式 */
+  .admin-header {
+    height: 65px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 25px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    z-index: 99;
+  }
+  .header-left { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    cursor: pointer; 
+    color: #1677ff; 
+    font-weight: 600; 
+    font-size: 18px;
+  }
+  .header-right { 
+    display: flex; 
+    align-items: center; 
+    gap: 20px; 
+  }
+  .user-info { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    font-size: 14px; 
+    color: #475569;
+  }
+  .role-tag, .level-tag {
+    padding: 3px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+  .role-tag {
+    background: rgba(22, 119, 255, 0.08);
+    color: #1677ff;
+    border-color: rgba(22, 119, 255, 0.2);
+  }
+  .level-tag {
+    background: rgba(249, 115, 22, 0.08);
+    color: #f97316;
+    border-color: rgba(249, 115, 22, 0.2);
+  }
+  .header-btn {
+    cursor: pointer;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #64748b;
+    border: 1px solid transparent;
+  }
+  .header-btn:hover { 
+    background: #f1f5f9;
+    color: #1677ff;
+    transform: translateY(-1px);
+  }
+  /* 内容区 */
+  .admin-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    padding: 20px;
+    gap: 20px;
+  }
+  /* 侧边栏高级样式 */
+  .sidebar {
+    width: 220px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    padding: 25px 0;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  }
+  .sidebar-collapse { width: 65px; }
+  .menu-item {
+    padding: 12px 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-left: 3px solid transparent;
+  }
+  .menu-item i { font-size: 16px; }
+  .menu-item.active {
+    color: #1677ff;
+    background: rgba(22, 119, 255, 0.05);
+    border-left-color: #1677ff;
+  }
+  .menu-item:hover { 
+    color: #1677ff; 
+    background: rgba(22, 119, 255, 0.03);
+    transform: translateX(2px);
+  }
+  .sidebar-collapse .menu-item {
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .sidebar-collapse .menu-item.active {
+    border-radius: 8px;
+    margin: 0 8px;
+    border-left: none;
+    background: rgba(22, 119, 255, 0.1);
+  }
+  .menu-disabled {
+    padding: 12px 28px;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .sidebar-collapse .menu-disabled { justify-content: center; padding: 12px 0; }
+  .menu-text { transition: opacity 0.2s ease; }
+  .sidebar-collapse .menu-text { opacity: 0; }
+  /* 主内容区 */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-right: 5px;
+  }
+  .main-content::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .main-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  .main-content::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  /* 通用高级样式 */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+    padding: 15px 20px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  }
+  .search-input { flex: 1; min-width: 200px; }
+  .stat-wrap {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 18px;
+    margin-bottom: 0;
+  }
+  .stat-card {
+    padding: 20px 25px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+  }
+  .stat-card i {
+    font-size: 22px;
+    color: #1677ff;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    border-radius: 10px;
+    background: rgba(22, 119, 255, 0.08);
+  }
+  .stat-card .num { 
+    font-size: 28px; 
+    font-weight: 700; 
+    color: #1677ff; 
+    margin: 8px 0 5px; 
+    letter-spacing: 0.5px;
+  }
+  .stat-card .desc { 
+    color: #64748b; 
+    font-size: 14px; 
+    font-weight: 500;
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    margin-bottom: 0;
+  }
+  .card-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #1e293b;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  }
+  /* ElementUI组件高级覆写 */
+  :root {
+    --el-color-primary: #1677ff;
+    --el-color-warning: #f97316;
+    --el-color-success: #10b981;
+    --el-color-danger: #ef4444;
+    --el-input-border-radius: 8px !important;
+    --el-button-border-radius: 8px !important;
+    --el-table-border-radius: 12px !important;
+    --el-dialog-border-radius: 16px !important;
+    --el-tag-border-radius: 8px !important;
+  }
+  .el-input, .el-input-number, .el-select {
+    --el-input-border-color: #e2e8f0 !important;
+    --el-input-hover-border-color: #1677ff !important;
+    --el-input-focus-border-color: #1677ff !important;
+  }
+  .el-table th {
+    background: #f8fafc !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+  }
+  .el-table tr {
+    border-bottom: 1px solid rgba(226, 232, 240, 0.3) !important;
+  }
+  .el-table--enable-row-hover .el-table__row:hover {
+    background: rgba(22, 119, 255, 0.03) !important;
+  }
+  .el-dialog {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  }
+  .el-dialog__header {
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5) !important;
+    padding-bottom: 10px !important;
+  }
+  .el-dialog__title {
+    color: #1e293b !important;
+    font-weight: 700 !important;
+  }
+  .el-tag {
+    border: none !important;
+    padding: 4px 10px !important;
+  }
+  .el-tag--primary {
+    background: rgba(22, 119, 255, 0.1) !important;
+    color: #1677ff !important;
+  }
+  .el-tag--info {
+    background: rgba(148, 163, 184, 0.1) !important;
+    color: #64748b !important;
+  }
+  .el-tag--warning.level-tag {
+    background: rgba(249, 115, 22, 0.1) !important;
+    color: #f97316 !important;
+  }
+  /* 移动端适配 */
+  @media (max-width: 768px) {
+    .sidebar { width: 65px; }
+    .sidebar-collapse { width: 65px; }
+    .menu-item span, .menu-disabled span { display: none; }
+    .menu-item, .menu-disabled { justify-content: center; border-left: none; }
+    .menu-item.active { border-radius: 8px; margin: 0 8px; }
+    .stat-wrap { grid-template-columns: 1fr 1fr; }
+    .search-bar { flex-direction: column; align-items: stretch; }
+    .search-input { min-width: 100%; }
+    .admin-header { padding: 0 15px; }
+    .header-right { gap: 10px; }
+    .header-btn { padding: 5px 10px; font-size: 12px; }
+    .card { padding: 20px; }
+    .stat-card { padding: 15px 20px; }
+  }
+  @media (max-width: 480px) {
+    .stat-wrap { grid-template-columns: 1fr; }
+    .login-card { padding: 30px 25px; }
+    .admin-header { padding: 0 10px; }
+    .main-content { padding: 0; }
+    .admin-content { padding: 15px; gap: 15px; }
+    .stat-card .num { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 登录页面 -->
+  <div class="login-box" v-if="!isLogin">
+    <div class="login-card">
+      <h1>后台管理系统</h1>
+      <el-form :model="loginForm" ref="loginFormRef" label-width="0" :rules="loginRules">
+        <el-form-item prop="username">
+          <el-input v-model="loginForm.username" placeholder="请输入用户名" size="large" clearable @input="loginForm.username = loginForm.username.trim()">
+            <template #prefix><i class="el-icon-user" style="color: #64748b;"></i></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item prop="password">
+          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" size="large" show-password clearable>
+            <template #prefix><i class="el-icon-lock" style="color: #64748b;"></i></template>
+          </el-input>
+        </el-form-item>
+        <div class="remember-pwd">
+          <el-checkbox v-model="loginForm.rememberPwd" /> 记住密码（MD5加密存储）
+        </div>
+        <el-form-item>
+          <el-button type="primary" size="large" style="width:100%;" @click="login">立即登录</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+  </div>
+
+  <!-- 后台主页面 -->
+  <div class="admin-box" v-else>
+    <!-- 头部导航 -->
+    <div class="admin-header">
+      <div class="header-left" @click="toggleSidebar">
+        <i class="el-icon" :class="sidebarCollapse ? 'el-icon-s-unfold' : 'el-icon-s-fold'"></i>
+        <span v-show="!sidebarCollapse">后台管理中心</span>
+      </div>
+      <div class="header-right">
+        <div class="user-info">
+          <span>欢迎，{{ currentUser.username }}</span>
+          <span class="role-tag">{{ roleMap[currentUser.role] }}</span>
+          <span class="level-tag">Lv.{{ currentUser.level }}</span>
+        </div>
+        <div class="header-btn" @click="openPwdDialog"><i class="el-icon-key"></i> 修改密码</div>
+        <div class="header-btn" @click="logout"><i class="el-icon-switch-button"></i> 退出登录</div>
+      </div>
+    </div>
+
+    <!-- 核心内容区 -->
+    <div class="admin-content">
+      <!-- 侧边栏菜单 -->
+      <div class="sidebar" :class="{ 'sidebar-collapse': sidebarCollapse }">
+        <div class="menu-item" :class="{active: activeMenu === 'home'}" @click="activeMenu='home'">
+          <i class="el-icon-s-data"></i><span class="menu-text">数据概览</span>
+        </div>
+        <div v-if="hasOperatePermission" class="menu-item" :class="{active: activeMenu === 'user'}" @click="activeMenu='user'">
+          <i class="el-icon-user"></i><span class="menu-text">账号管理</span>
+        </div>
+        <div v-else class="menu-disabled">
+          <i class="el-icon-user"></i><span class="menu-text">账号管理</span>
+        </div>
+        <div v-if="hasOperatePermission" class="menu-item" :class="{active: activeMenu === 'balance'}" @click="activeMenu='balance'">
+          <i class="el-icon-wallet"></i><span class="menu-text">余额管理</span>
+        </div>
+        <div v-else class="menu-disabled">
+          <i class="el-icon-wallet"></i><span class="menu-text">余额管理</span>
+        </div>
+        <div class="menu-item" :class="{active: activeMenu === 'log'}" @click="activeMenu='log'">
+          <i class="el-icon-document"></i><span class="menu-text">系统日志</span>
+        </div>
+      </div>
+
+      <!-- 主内容展示 -->
+      <div class="main-content">
+        <!-- 数据概览模块 -->
+        <div v-if="activeMenu === 'home'">
+          <div class="stat-wrap">
+            <div class="stat-card">
+              <i class="el-icon-user"></i>
+              <div class="num">{{ userList.length }}</div>
+              <div class="desc">总账号数</div>
+            </div>
+            <div class="stat-card">
+              <i class="el-icon-user-solid"></i>
+              <div class="num">{{ adminCount }}</div>
+              <div class="desc">管理员数</div>
+            </div>
+            <div class="stat-card">
+              <i class="el-icon-user-o"></i>
+              <div class="num">{{ clientCount }}</div>
+              <div class="desc">普通用户数</div>
+            </div>
+            <div class="stat-card">
+              <i class="el-icon-wallet"></i>
+              <div class="num">¥{{ totalBalance.toFixed(2) }}</div>
+              <div class="desc">系统总余额</div>
+            </div>
+            <div class="stat-card">
+              <i class="el-icon-document"></i>
+              <div class="num">{{ logList.length }}</div>
+              <div class="desc">操作日志数</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              最近操作日志
+              <el-button type="primary" size="small" icon="el-icon-download" @click="exportExcel('log', logList.slice(0,10), '最近操作日志')" v-if="hasOperatePermission">导出Excel</el-button>
+            </div>
+            <el-table :data="logList.slice(0,10)" border size="small" width="100%">
+              <el-table-column prop="time" label="操作时间" width="180" />
+              <el-table-column prop="operator" label="操作人" width="100" />
+              <el-table-column prop="content" label="操作内容" />
+            </el-table>
+          </div>
+        </div>
+
+        <!-- 账号管理模块（核心增删改查+等级） -->
+        <div v-if="activeMenu === 'user'">
+          <div class="card">
+            <div class="card-title">
+              账号管理
+              <el-button type="primary" size="small" icon="el-icon-plus" @click="openUserDialog">新增账号</el-button>
+            </div>
+            <div class="search-bar">
+              <el-input v-model="searchUser" placeholder="搜索用户名/角色/等级" clearable class="search-input" />
+              <el-select v-model="filterRole" placeholder="筛选角色" clearable style="width:120px;">
+                <el-option label="管理员" value="admin" />
+                <el-option label="普通用户" value="client" />
+              </el-select>
+              <el-input-number v-model="filterLevel" placeholder="筛选等级" clearable style="width:120px;" :min="1" :max="10000000000" />
+              <el-button type="primary" size="small" icon="el-icon-search" @click="getFilterUser">查询</el-button>
+              <el-button size="small" icon="el-icon-refresh" @click="resetUserFilter">重置</el-button>
+              <el-button type="success" size="small" icon="el-icon-download" @click="exportExcel('user', filterUserList, '账号列表')">导出Excel</el-button>
+            </div>
+            <el-table :data="filterUserList" border size="small" width="100%" @row-click="handleRowClick">
+              <el-table-column prop="username" label="用户名" width="120" />
+              <el-table-column prop="password" label="密码" width="180">
+                <template #default>******</template>
+              </el-table-column>
+              <el-table-column prop="role" label="账号角色" width="100">
+                <template #default="scope">
+                  <el-tag :type="scope.row.role==='admin'?'primary':'info'">
+                    {{ roleMap[scope.row.role] }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="level" label="账号等级" width="100">
+                <template #default="scope">
+                  <el-tag type="warning" class="level-tag">Lv.{{ scope.row.level }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="balance" label="账户余额" width="120" :formatter="formatBalance" />
+              <el-table-column label="操作" width="200">
+                <template #default="scope">
+                  <el-button type="primary" size="mini" icon="el-icon-edit" @click="openUserDialog(scope.row)">编辑</el-button>
+                  <el-button type="warning" size="mini" icon="el-icon-key" @click="resetPwd(scope.row)">重置密码</el-button>
+                  <el-button type="danger" size="mini" icon="el-icon-delete" @click="deleteUser(scope.row)" v-if="scope.row.username!=='admin'">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- 余额管理模块（带等级展示） -->
+        <div v-if="activeMenu === 'balance'">
+          <div class="card">
+            <div class="card-title">
+              余额管理
+              <el-button type="success" size="small" icon="el-icon-download" @click="exportExcel('balance', userList, '余额列表')">导出Excel</el-button>
+            </div>
+            <div class="search-bar">
+              <el-input v-model="searchBalance" placeholder="搜索用户名/等级" clearable class="search-input" />
+              <el-button type="primary" size="small" icon="el-icon-search" @click="getFilterBalance">查询</el-button>
+              <el-button size="small" icon="el-icon-refresh" @click="resetBalanceFilter">重置</el-button>
+            </div>
+            <el-table :data="filterBalanceList" border size="small" width="100%">
+              <el-table-column prop="username" label="用户名" width="120" />
+              <el-table-column prop="role" label="账号角色" width="100">
+                <template #default="scope">
+                  <el-tag :type="scope.row.role==='admin'?'primary':'info'">
+                    {{ roleMap[scope.row.role] }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="level" label="账号等级" width="100">
+                <template #default="scope">
+                  <el-tag type="warning" class="level-tag">Lv.{{ scope.row.level }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="balance" label="当前余额" width="120" :formatter="formatBalance" />
+              <el-table-column label="操作" width="200">
+                <template #default="scope">
+                  <el-input-number v-model="changeNum" size="small" :min="0.01" :precision="2" style="width:80px;" />
+                  <el-button type="success" size="mini" icon="el-icon-plus" @click="updateBalance(scope.row, 'add')">增加</el-button>
+                  <el-button type="danger" size="mini" icon="el-icon-minus" @click="updateBalance(scope.row, 'reduce')" :disabled="scope.row.balance < changeNum">减少</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- 系统日志模块 -->
+        <div v-if="activeMenu === 'log'">
+          <div class="card">
+            <div class="card-title">
+              系统日志
+              <el-button type="success" size="small" icon="el-icon-download" @click="exportExcel('log', logList, '系统日志')" v-if="hasOperatePermission">导出Excel</el-button>
+            </div>
+            <div class="search-bar">
+              <el-input v-model="searchLog" placeholder="搜索操作人/操作内容" clearable class="search-input" />
+              <el-button type="primary" size="small" icon="el-icon-search" @click="getFilterLog">查询</el-button>
+              <el-button size="small" icon="el-icon-refresh" @click="resetLogFilter">重置</el-button>
+            </div>
+            <el-table :data="filterLogList" border size="small" width="100%">
+              <el-table-column prop="id" label="日志ID" width="80" />
+              <el-table-column prop="time" label="操作时间" width="180" />
+              <el-table-column prop="operator" label="操作人" width="100" />
+              <el-table-column prop="content" label="操作内容" />
+            </el-table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增/编辑账号弹窗（带等级设置） -->
+  <el-dialog v-model="dialogShow" :title="dialogTitle" width="420px" lock-scroll center>
+    <el-form :model="formUser" ref="userFormRef" label-width="80px" :rules="userRules">
+      <el-form-item label="用户名" prop="username">
+        <el-input v-model="formUser.username" placeholder="请输入唯一用户名" autocomplete="off" @input="formUser.username = formUser.username.trim()" />
+        <div v-if="nameTip" style="color: #f56c6c; font-size: 12px; margin-top: 4px;">{{ nameTip }}</div>
+      </el-form-item>
+      <el-form-item label="登录密码" prop="password">
+        <el-input v-model="formUser.password" type="password" placeholder="编辑时不填则保留原密码" autocomplete="off" />
+      </el-form-item>
+      <el-form-item label="账号角色" prop="role">
+        <el-select v-model="formUser.role" placeholder="请选择账号角色">
+          <el-option label="管理员" value="admin" />
+          <el-option label="普通用户" value="client" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="账号等级" prop="level">
+        <el-input-number v-model="formUser.level" :min="1" :max="10000000000" style="width:100%;" placeholder="设置账号等级" />
+      </el-form-item>
+      <el-form-item label="初始余额" prop="balance">
+        <el-input-number v-model="formUser.balance" :min="0" :precision="2" step="0.01" style="width:100%;" placeholder="请设置初始余额" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="dialogShow = false">取消</el-button>
+      <el-button type="primary" @click="saveUser">确定保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 修改个人密码弹窗 -->
+  <el-dialog v-model="pwdDialogShow" title="修改个人密码" width="400px" lock-scroll center>
+    <el-form :model="pwdForm" ref="pwdFormRef" label-width="80px" :rules="pwdRules">
+      <el-form-item label="原密码" prop="oldPwd">
+        <el-input v-model="pwdForm.oldPwd" type="password" placeholder="请输入原密码" autocomplete="off" />
+      </el-form-item>
+      <el-form-item label="新密码" prop="newPwd">
+        <el-input v-model="pwdForm.newPwd" type="password" placeholder="请输入新密码" autocomplete="off" />
+      </el-form-item>
+      <el-form-item label="确认新密码" prop="confirmPwd">
+        <el-input v-model="pwdForm.confirmPwd" type="password" placeholder="请再次输入新密码" autocomplete="off" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="pwdDialogShow = false">取消</el-button>
+      <el-button type="primary" @click="updatePwd">确定修改</el-button>
+    </template>
+  </el-dialog>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, watch } = Vue;
+const { ElMessage, ElMessageBox } = ElementPlus;
+
+createApp({
+  setup() {
+    // 核心状态管理
+    const isLogin = ref(false);
+    const activeMenu = ref('home');
+    const sidebarCollapse = ref(JSON.parse(localStorage.getItem('sysSidebarStatus')) || false);
+    const roleMap = ref({ admin: '管理员', client: '普通用户' });
+    const nameTip = ref(''); // 用户名重复提示
+
+    // 登录表单相关
+    const loginForm = ref({ username: '', password: '', rememberPwd: false });
+    const loginFormRef = ref(null);
+    const loginRules = ref({
+      username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+      password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+    });
+
+    // 初始化基础数据（带等级，初始等级1，范围1-10000000000）
+    const initUserList = [
+      { username: 'admin', password: md5('123456'), role: 'admin', balance: 1000.00, level: 1 },
+      { username: 'test', password: md5('123456'), role: 'client', balance: 200.00, level: 1 }
+    ];
+    const initLogList = [{ id: 1, time: new Date().toLocaleString(), operator: '系统', content: '系统初始化完成，新增账号等级功能' }];
+    
+    // 从本地存储读取数据，补全历史数据的等级字段（默认1级）
+    const userList = ref(JSON.parse(localStorage.getItem('sysUserList')) || initUserList);
+    const logList = ref(JSON.parse(localStorage.getItem('sysLogList')) || initLogList);
+    // 兼容历史数据，无等级字段则默认1级
+    userList.value.forEach(item => {
+      if (!item.hasOwnProperty('level')) item.level = 1;
+    });
+    const currentUser = ref({});
+    const originalName = ref(''); // 编辑账号时的原始用户名，用于唯一性校验
+
+    // 权限控制：仅管理员拥有操作权限
+    const hasOperatePermission = computed(() => currentUser.value.role === 'admin');
+
+    // 数据概览统计（实时计算）
+    const adminCount = computed(() => userList.value.filter(item => item.role === 'admin').length);
+    const clientCount = computed(() => userList.value.filter(item => item.role === 'client').length);
+    const totalBalance = computed(() => userList.value.reduce((sum, item) => sum + item.balance, 0));
+
+    // 新增操作日志
+    const addLog = (content) => {
+      logList.value.push({
+        id: logList.value.length + 1,
+        time: new Date().toLocaleString(),
+        operator: currentUser.value.username || '系统',
+        content: content
+      });
+      localStorage.setItem('sysLogList', JSON.stringify(logList.value));
+    };
+
+    // 登录方法【核心BUG修复：密码去空格、MD5加密匹配、记住密码防篡改】
+    const login = async () => {
+      const valid = await loginFormRef.value.validate().catch(() => false);
+      if (!valid) return;
+      // 强制去空格，避免空格导致的登录失败
+      const username = loginForm.value.username.trim();
+      const password = loginForm.value.password.trim();
+      // 匹配用户名和加密后的密码（修复：原密码直接匹配问题）
+      const matchUser = userList.value.find(
+        item => item.username === username && item.password === md5(password)
+      );
+      if (!matchUser) {
+        ElMessage.error('用户名或密码错误！');
+        return;
+      }
+      currentUser.value = { ...matchUser };
+      isLogin.value = true;
+      ElMessage.success(`欢迎${roleMap.value[matchUser.role]}：${matchUser.username}（Lv.${matchUser.level}）`);
+      addLog(`${matchUser.username}（${roleMap.value[matchUser.role]}，Lv.${matchUser.level}）成功登录系统`);
+      // 记住密码逻辑【修复：存储原始密码、防篡改空值判断】
+      if (loginForm.value.rememberPwd && username && password) {
+        localStorage.setItem('sysRememberUser', JSON.stringify({ username, password }));
+      } else {
+        localStorage.removeItem('sysRememberUser');
+      }
+      // 清空登录表单
+      loginForm.value = { username: '', password: '', rememberPwd: false };
+    };
+
+    // 退出登录【修复BUG：先记录日志再清空用户，避免操作人丢失】
+    const logout = () => {
+      ElMessageBox.confirm('确定要退出系统吗？', '提示', { type: 'question' }).then(() => {
+        // 核心修复：先记录退出日志，再清空当前用户
+        addLog(`${currentUser.value.username}（Lv.${currentUser.value.level}）退出系统`);
+        isLogin.value = false;
+        currentUser.value = {};
+        activeMenu.value = 'home';
+        ElMessage.success('退出系统成功！');
+      });
+    };
+
+    // 侧边栏折叠/展开（记忆状态）
+    const toggleSidebar = () => {
+      sidebarCollapse.value = !sidebarCollapse.value;
+      localStorage.setItem('sysSidebarStatus', JSON.stringify(sidebarCollapse.value));
+    };
+
+    // 账号管理-搜索筛选（支持等级筛选）
+    const searchUser = ref('');
+    const filterRole = ref('');
+    const filterLevel = ref('');
+    const filterUserList = computed(() => {
+      return userList.value.filter(item => {
+        const matchName = item.username.includes(searchUser.value) || roleMap.value[item.role].includes(searchUser.value) || item.level.toString().includes(searchUser.value);
+        const matchRole = filterRole.value ? item.role === filterRole.value : true;
+        const matchLevel = filterLevel.value ? item.level === filterLevel.value : true;
+        return matchName && matchRole && matchLevel;
+      });
+    });
+    const getFilterUser = () => ElMessage.info('账号筛选完成！');
+    const resetUserFilter = () => { 
+      searchUser.value = ''; 
+      filterRole.value = ''; 
+      filterLevel.value = ''; 
+      ElMessage.info('筛选条件已重置！');
+    };
+
+    // 余额管理-搜索筛选（支持等级搜索）
+    const searchBalance = ref('');
+    const changeNum = ref(1.00);
+    const filterBalanceList = computed(() => {
+      return userList.value.filter(item => 
+        item.username.includes(searchBalance.value) || item.level.toString().includes(searchBalance.value)
+      );
+    });
+    const getFilterBalance = () => ElMessage.info('余额筛选完成！');
+    const resetBalanceFilter = () => { searchBalance.value = ''; };
+
+    // 余额修改（增加/减少）【修复BUG：数值精度、禁用判断、金额大于0】
+    const updateBalance = (row, type) => {
+      if (changeNum.value <= 0) {
+        ElMessage.warning('操作金额必须大于0！');
+        return;
+      }
+      const targetUser = userList.value.find(item => item.username === row.username);
+      // 修复精度丢失问题，强制保留2位小数
+      targetUser.balance = type === 'add' 
+        ? Number((targetUser.balance + changeNum.value).toFixed(2))
+        : Number((targetUser.balance - changeNum.value).toFixed(2));
+      localStorage.setItem('sysUserList', JSON.stringify(userList.value));
+      addLog(`为${row.username}（Lv.${row.level}）${type === 'add' ? '增加' : '减少'}余额${changeNum.value}元，当前余额${targetUser.balance}元`);
+      ElMessage.success(`余额${type === 'add' ? '增加' : '减少'}成功！`);
+      changeNum.value = 1.00;
+    };
+
+    // 余额格式化显示
+    const formatBalance = (row) => `¥${row.balance.toFixed(2)}`;
+
+    // 日志管理-搜索筛选
+    const searchLog = ref('');
+    const filterLogList = computed(() => logList.value.filter(item => item.operator.includes(searchLog.value) || item.content.includes(searchLog.value)));
+    const getFilterLog = () => ElMessage.info('日志筛选完成！');
+    const resetLogFilter = () => { searchLog.value = ''; };
+
+    // 新增/编辑账号弹窗相关（带等级，默认1级）
+    const dialogShow = ref(false);
+    const isEdit = ref(false);
+    const dialogTitle = ref('新增账号');
+    const formUser = ref({ username: '', password: '', role: '', balance: 0.00, level: 1 });
+    const userFormRef = ref(null);
+    const userRules = ref({
+      username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+      password: [{ required: true, message: '请输入登录密码', trigger: 'blur' }, { min:6, message:'密码至少6位', trigger:'blur' }],
+      role: [{ required: true, message: '请选择账号角色', trigger: 'change' }],
+      level: [{ required: true, message: '请设置账号等级', trigger: 'change' }],
+      balance: [{ required: true, message: '请设置初始余额', trigger: 'change' }]
+    });
+
+    // 打开新增/编辑弹窗【优化：编辑时密码框显示密文提示】
+    const openUserDialog = (row) => {
+      dialogShow.value = true;
+      nameTip.value = '';
+      if (row) {
+        isEdit.value = true;
+        dialogTitle.value = '编辑账号';
+        formUser.value = { ...row, password: '******' }; // 密文占位，避免直接显示加密密码
+        originalName.value = row.username;
+      } else {
+        isEdit.value = false;
+        dialogTitle.value = '新增账号';
+        formUser.value = { username: '', password: '', role: '', balance: 0.00, level: 1 };
+        originalName.value = '';
+      }
+    };
+
+    // 用户名唯一性校验
+    const checkUserNameUnique = () => {
+      if (isEdit.value && formUser.value.username === originalName.value) {
+        nameTip.value = '';
+        return true;
+      }
+      const isExist = userList.value.some(item => item.username === formUser.value.username.trim());
+      if (isExist) {
+        nameTip.value = '用户名已存在，请更换！';
+        return false;
+      }
+      nameTip.value = '';
+      return true;
+    };
+
+    // 保存账号（新增/编辑，带等级）【核心BUG修复：编辑密码密文判断、空密码保留原密码】
+    const saveUser = async () => {
+      // 编辑时移除密码必填校验（不填则保留原密码）
+      if (isEdit.value) {
+        userRules.value.password = [];
+      } else {
+        userRules.value.password = [{ required: true, message: '请输入登录密码', trigger: 'blur' }, { min:6, message:'密码至少6位', trigger:'blur' }];
+      }
+      const valid = await userFormRef.value.validate().catch(() => false);
+      if (!valid) return;
+      if (!checkUserNameUnique()) return;
+      // 强制去空格
+      const username = formUser.value.username.trim();
+
+      if (!isEdit.value) {
+        // 新增账号：密码MD5加密
+        const newUser = {
+          ...formUser.value,
+          username,
+          password: md5(formUser.value.password.trim())
+        };
+        userList.value.push(newUser);
+        addLog(`新增${roleMap.value[formUser.value.role]}：${username}（Lv.${formUser.value.level}），初始余额${formUser.value.balance}元`);
+        ElMessage.success(`【${roleMap.value[formUser.value.role]}】新增成功！可直接用该账号登录`);
+      } else {
+        // 编辑账号【核心修复：密文判断，空密码/******都保留原密码】
+        const targetIndex = userList.value.findIndex(item => item.username === originalName.value);
+        if (targetIndex === -1) {
+          ElMessage.error('账号不存在！');
+          return;
+        }
+        // 判断是否修改密码：空密码/****** → 保留原密码，否则加密
+        let finalPwd = userList.value[targetIndex].password;
+        const pwd = formUser.value.password.trim();
+        if (pwd && pwd !== '******') {
+          finalPwd = md5(pwd);
+        }
+        const updateUser = { 
+          ...formUser.value, 
+          username,
+          password: finalPwd 
+        };
+        userList.value[targetIndex] = updateUser;
+        addLog(`编辑账号：原用户名【${originalName.value}】→ 新用户名【${username}】，角色【${roleMap.value[formUser.value.role]}】，等级Lv.${formUser.value.level}，余额${formUser.value.balance}元`);
+        ElMessage.success('账号编辑成功！可直接用新用户名+密码登录');
+        // 若编辑的是当前登录用户，更新当前用户信息
+        if (originalName.value === currentUser.value.username) {
+          currentUser.value = { ...updateUser };
+        }
+      }
+      // 同步到本地存储
+      localStorage.setItem('sysUserList', JSON.stringify(userList.value));
+      dialogShow.value = false;
+    };
+
+    // 删除账号（admin账号不可删除）
+    const deleteUser = (row) => {
+      ElMessageBox.confirm('确定要删除该账号吗？删除后不可恢复！', '危险警告', { type: 'warning' }).then(() => {
+        userList.value = userList.value.filter(item => item.username !== row.username);
+        localStorage.setItem('sysUserList', JSON.stringify(userList.value));
+        addLog(`删除${roleMap.value[row.role]}：${row.username}（Lv.${row.level}）`);
+        ElMessage.success('账号删除成功！');
+      });
+    };
+
+    // 重置账号密码【修复BUG：空密码判断、去空格】
+    const resetPwd = (row) => {
+      ElMessageBox.prompt(`请输入${row.username}（Lv.${row.level}）的新密码`, '重置密码', { 
+        type: 'warning',
+        validator: (_, val) => val.trim() ? (val.trim().length>=6 ? true : new Error('密码至少6位！')) : new Error('密码不能为空！')
+      }).then(({ value }) => {
+        const targetUser = userList.value.find(item => item.username === row.username);
+        targetUser.password = md5(value.trim());
+        localStorage.setItem('sysUserList', JSON.stringify(userList.value));
+        addLog(`重置${row.username}（Lv.${row.level}）的登录密码`);
+        ElMessage.success('密码重置成功！');
+      });
+    };
+
+    // 表格行点击编辑账号
+    const handleRowClick = (row) => openUserDialog(row);
+
+    // 修改个人密码相关【修复BUG：密码一致性、空值判断、去空格】
+    const pwdDialogShow = ref(false);
+    const pwdForm = ref({ oldPwd: '', newPwd: '', confirmPwd: '' });
+    const pwdFormRef = ref(null);
+    const pwdRules = ref({
+      oldPwd: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+      newPwd: [{ required: true, message: '请输入新密码', trigger: 'blur' }, { min:6, message:'密码至少6位', trigger:'blur' }],
+      confirmPwd: [
+        { required: true, message: '请确认新密码', trigger: 'blur' },
+        { validator: (_, val, cb) => val.trim() === pwdForm.value.newPwd.trim() ? cb() : cb(new Error('两次输入的密码不一致！')) }
+      ]
+    });
+
+    // 打开修改密码弹窗
+    const openPwdDialog = () => {
+      pwdDialogShow.value = true;
+      pwdForm.value = { oldPwd: '', newPwd: '', confirmPwd: '' };
+    };
+
+    // 提交修改个人密码【修复：全量去空格、密文匹配】
+    const updatePwd = async () => {
+      const valid = await pwdFormRef.value.validate().catch(() => false);
+      if (!valid) return;
+      // 强制去空格
+      const oldPwd = pwdForm.value.oldPwd.trim();
+      const newPwd = pwdForm.value.newPwd.trim();
+      const confirmPwd = pwdForm.value.confirmPwd.trim();
+      // 校验原密码
+      if (md
